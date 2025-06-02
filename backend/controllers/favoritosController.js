@@ -97,10 +97,30 @@ class FavoritosController {
 
       // Filtros
       const filterCriteria = req.query.filterCriteria;
-      const searchQuery = req.query.searchQuery;
+      let searchQuery = req.query.searchQuery;
       const fechaDesde = req.query.fechaDesde;
       const fechaHasta = req.query.fechaHasta;
-      const ingrediente = req.query.ingrediente;
+      const ingredientesParam = req.query.ingredientes;
+
+      // Trim searchQuery if it's a string
+      if (typeof searchQuery === 'string') {
+        searchQuery = searchQuery.trim();
+      }
+
+      // If filterCriteria is set but searchQuery is empty (except for fecha_creacion/fecha_publicacion/ingrediente), return empty result
+      if (filterCriteria && (!searchQuery || searchQuery === '') && !['fecha_creacion','fecha_publicacion','ingrediente'].includes(filterCriteria)) {
+        return res.status(200).json(
+          Respuesta.exito({
+            favoritos: [],
+            paginacion: {
+              currentPage: page,
+              totalPages: 0,
+              totalItems: 0,
+              itemsPerPage: limit
+            }
+          }, 'Favoritos obtenidos correctamente')
+        );
+      }
 
       // Construir where dinámico para Receta
       let recetaWhere = {};
@@ -131,8 +151,7 @@ class FavoritosController {
         if (fechaHasta) recetaWhere.fecha_publicacion[Op.lte] = fechaHasta;
       }
 
-      // Multi-ingredientes: aceptar lista de IDs/nombres
-      let ingredientesParam = req.query.ingredientes;
+      // Multi-ingredientes: aceptar lista de IDs
       let ingredientesArray = [];
       if (ingredientesParam) {
         if (typeof ingredientesParam === 'string') {
@@ -142,20 +161,30 @@ class FavoritosController {
         }
       }
 
-      let recetaInclude = [
-        {
+      // Construir include para ingredientes solo si hay filtro
+      let recetaInclude = [];
+      let useDistinct = false;
+      if (ingredientesArray.length > 0) {
+        recetaInclude.push({
           model: models.Recetas_Ingredientes,
           as: 'Recetas_Ingredientes',
-          required: ingredientesArray.length > 0,
-          where: ingredientesArray.length > 0 ? { ingrediente_id: { [Op.in]: ingredientesArray.map(Number) } } : undefined
-        },
-        {
-          model: Usuario,
-          as: 'usuario',
-          attributes: ['usuario_id', 'Nombre_de_usuario', 'Foto_de_perfil']
-        }
-      ];
-
+          required: true,
+          where: { ingrediente_id: { [Op.in]: ingredientesArray.map(Number) } }
+        });
+        useDistinct = true;
+      }
+      recetaInclude.push({
+        model: Usuario,
+        as: 'usuario',
+        attributes: ['usuario_id', 'Nombre_de_usuario', 'Foto_de_perfil']
+      });      // Debug logging
+      console.log('=== DEBUG FAVORITOS QUERY ===');
+      console.log('FilterCriteria:', filterCriteria);
+      console.log('SearchQuery:', searchQuery);
+      console.log('RecetaWhere:', recetaWhere);
+      console.log('RecetaInclude:', JSON.stringify(recetaInclude, null, 2));
+      console.log('UseDistinct:', useDistinct);
+      
       // Consulta
       const favoritos = await Favoritos.findAndCountAll({
         where: { usuario_id },
@@ -163,17 +192,24 @@ class FavoritosController {
           model: Receta,
           as: 'receta',
           where: Object.keys(recetaWhere).length > 0 ? recetaWhere : undefined,
+          required: Object.keys(recetaWhere).length > 0, // Solo incluir favoritos con receta que cumple el filtro
           attributes: [
             'receta_id', 'nombre', 'descripcion', 'tiempo_preparacion',
             'dificultad', 'porciones', 'imagen', 'categoria', 'usuario_id',
             'fecha_creacion', 'fecha_publicacion', 'origen'
           ],
-          include: recetaInclude
+          include: recetaInclude,
+          ...(useDistinct ? { required: true } : {})
         }],
         order: [['fecha_favorito', 'DESC']],
         limit,
-        offset
+        offset,
+        ...(useDistinct ? { distinct: true } : {}),
+        logging: console.log // Añadir logging de Sequelize
       });
+      
+      console.log('Favoritos encontrados:', favoritos.count);
+      console.log('=== END DEBUG ===');
 
       const totalPages = Math.ceil(favoritos.count / limit);
       const resultado = {
