@@ -1,0 +1,68 @@
+### Variables Globales
+@hostname = localhost
+@port = 3000
+@host = {{hostname}}:{{port}}
+@contentType = application/json
+
+
+### [1] Registro de usuario con datos completos
+POST http://{{host}}/api/auth/registrar
+Content-Type: {{contentType}}
+
+{
+  "Nombre_de_usuario": "usuario_completo",
+  "Contraseña": "ContrasenaSegura123!",
+  "Gmail": "completo@ejemplo.com",
+  "Nombre": "NombreCompleto",
+  "Apellidos": "ApellidoCompleto",
+  "Foto_de_perfil": "https://miservidor.com/imagenes/usuario_completo.jpg",
+  "Preferencias_de_contenido": "tecnologia, gastronomia, deportes",
+  "Modo_oscuro_claro": true,
+  "Rol": "usuario",
+  "País": "España",
+  "Lenguaje_de_preferencia": "es",
+  "Tipo_de_cuenta": "personal",
+  "Empresa_Organización": null,
+  "Aceptación_TYC": true,
+  "Aceptación_Política": true
+}
+
+### [2] Registro con campos obligatorios faltantes (error)
+POST http://{{host}}/api/auth/registrar
+Content-Type: {{contentType}}
+
+{
+  "Nombre_de_usuario": "usuario_falla",
+  "Gmail": "fallo@ejemplo.com"
+}
+
+### [3] Login exitoso (almacena cookie jwt automáticamente)
+POST http://{{host}}/api/auth/login
+Content-Type: {{contentType}}
+credentials: include
+
+{
+  "Nombre_de_usuario": "usuario_completo",
+  "Contraseña": "ContrasenaSegura123!"
+}
+
+### Obtener todas las recetas
+GET http://localhost:3000/api/receta/todas_las_recetas
+Authorization: Bearer  <tu_token>
+
+
+### [4] Validación de token (requiere cookie jwt válida)
+GET http://{{host}}/api/auth/validarToken
+Content-Type: {{contentType}}
+credentials: include
+
+### [6] Recuperar datos del usuario autenticado
+GET http://{{host}}/api/auth/usuario
+Content-Type: {{contentType}}
+credentials: include
+
+
+### [5] Logout (limpia la cookie jwt)
+POST http://{{host}}/api/auth/logout
+Content-Type: {{contentType}}
+credentials: include

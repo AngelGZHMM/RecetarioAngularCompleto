@@ -1,0 +1,52 @@
+#Mostrar todas las recetas
+GET http://localhost:3000/api/receta
+###
+# Buscar receta por id
+GET http://localhost:3000/api/receta/2
+###
+#Modificar una receta
+PUT http://localhost:3000/api/receta/59
+Content-Type: application/json
+
+{
+    "nombre": "Receta de pollo",
+    "imagen": "https://www.recetasgratis.net/med",
+    "descripcion": "Receta de pollo con arroz",
+    "tiempo_preparacion": 30,
+    "dificultad": "Media",
+    "fecha_creacion": "2021-09-01"
+}
+###
+#Eliminar una receta
+DELETE http://localhost:3000/api/receta/60
+###
+#Crear una receta
+#INSERT INTO `RECETA` (`receta_id`,`nombre`,`imagen`,`descripcion`,`tiempo_preparacion`,`dificultad`,`fecha_creacion`) VALUES (DEFAULT,?,?,?,?,?,?);
+POST http://localhost:3000/api/receta
+Content-Type: application/json
+
+{
+    "receta_id":null,
+    "nombre": "Receta de pollo",
+    "imagen" : "https://www.recetasgratis.net/medio/images/2017/08/03/Pollo-al-curry-con-arroz-basmati-780x520.jpg",
+    "descripcion": "Receta de pollo con arroz",
+    "tiempo_preparacion": 30,
+    "dificultad": "Media",
+    "fecha_creacion": "2021-09-01"
+}
+###
+### [3] Login exitoso (almacena cookie jwt automáticamente)
+POST http://localhost:3000/api/auth/login
+Content-Type: application/json
+credentials: include
+
+{
+  "Nombre_de_usuario": "usuario_completo",
+  "Contraseña": "ContrasenaSegura123!"
+}
+
+### Obtener todas las recetas
+GET http://localhost:3000/api/receta/todas_las_recetas
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c3VhcmlvX2lkIjoyLCJSb2wiOiJ1c3VhcmlvIiwiZXhwIjoxNzQ1ODMzMzE1LCJpYXQiOjE3NDU4Mjk3MTV9.E-EsdjqeeykHxFbXRm6o5HtLCzTtpuxwLSTjF-_Pbrk
+
+### Reemplaza <tu_token> con un token válido para probar la autenticación.

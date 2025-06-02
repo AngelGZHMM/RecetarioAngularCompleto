@@ -1,0 +1,42 @@
+// filepath: /c:/Users/Angel/Desktop/Node/backend_recetas/request/pasos.rest
+GET http://localhost:3000/api/pasos
+###
+# Buscar pasos por receta
+GET http://localhost:3000/api/pasos/2
+###
+# Crear paso
+POST http://localhost:3000/api/pasos
+Content-Type: application/json
+
+{
+    "orden": 2,
+    "receta": 13,
+    "descripcion": "Paso 1",
+    "ingrediente": "xxxx",
+    "cantidad": 200,
+    "unidad_medida": "gr",
+    "tipo": "Cocinar",
+    "duracion": 150,
+    "necesario" : 1
+}
+###
+#Borrar paso
+#Borrar el paso debe enviar las dos pk de la tabla paso que son orden y receta
+DELETE http://localhost:3000/api/pasos/5/13
+
+###
+#Actualizar paso
+PUT http://localhost:3000/api/pasos/2/13
+Content-Type: application/json
+
+{
+    "descripcion": "fsgaxcsdhjd",
+    "ingrediente": "xxxxx",
+    "cantidad": 200,
+    "unidad_medida": "gr",
+    "tipo": "Hornear",
+    "duracion": 150,
+    "necesario" : 1
+}
+
+
