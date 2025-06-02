@@ -3,24 +3,28 @@ const { receta: Receta } = require("../models/init-models")(require("../config/s
 const jwt = require('jsonwebtoken');
 const secretKey = process.env.JWT_SECRET;
 
+// Importar modelos para incluir datos del usuario
+const initModels = require("../models/init-models");
+const sequelize = require("../config/sequelize");
+const models = initModels(sequelize);
+
 // Obtener todas las recetas con paginación y filtrado
 exports.getAllReceta = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const itemsPerPage = parseInt(req.query.itemsPerPage) || 10;
     const filterCriteria = req.query.filterCriteria || null;
-    const searchQuery = req.query.searchQuery || null;    const whereClause = {};
+    const searchQuery = req.query.searchQuery || null;
+    const whereClause = {};
 
     if (filterCriteria && searchQuery) {
       if (filterCriteria === "fecha_creacion" || filterCriteria === "fecha_publicacion") {
-        // Verificar si es un rango de fechas (formato: fecha1|fecha2)
         if (searchQuery.includes('|')) {
           const [fechaDesde, fechaHasta] = searchQuery.split('|');
           whereClause[filterCriteria] = {
             [Op.between]: [fechaDesde, fechaHasta]
           };
         } else {
-          // Búsqueda por fecha exacta o por fecha de inicio
           whereClause[filterCriteria] = {
             [Op.gte]: searchQuery
           };
@@ -30,14 +34,38 @@ exports.getAllReceta = async (req, res) => {
       }
     }
 
-    const offset = (page - 1) * itemsPerPage; // Calcular el desplazamiento
-    const limit = itemsPerPage; // Establecer el límite de elementos por página
+    // Multi-ingredientes: aceptar lista de IDs
+    let ingredientesParam = req.query.ingredientes;
+    let ingredientesArray = [];
+    if (ingredientesParam) {
+      if (typeof ingredientesParam === 'string') {
+        ingredientesArray = ingredientesParam.split(',').map(x => x.trim()).filter(x => x);
+      } else if (Array.isArray(ingredientesParam)) {
+        ingredientesArray = ingredientesParam;
+      }
+    }
 
-    // Obtener las recetas con paginación y filtrado
-    const { rows: data, count: totalItems } = await Receta.findAndCountAll({
-      where: whereClause, // Aplicar los filtros
-      offset, // Desplazamiento calculado
-      limit, // Límite de elementos por página
+    let recetaInclude = [];
+    let useDistinct = false;
+    if (ingredientesArray.length > 0) {
+      recetaInclude.push({
+        model: models.Recetas_Ingredientes,
+        as: 'Recetas_Ingredientes',
+        required: true,
+        where: { ingrediente_id: { [Op.in]: ingredientesArray.map(Number) } }
+      });
+      useDistinct = true;
+    }
+
+    const offset = (page - 1) * itemsPerPage;
+    const limit = itemsPerPage;
+
+    const { rows: data, count: totalItems } = await models.receta.findAndCountAll({
+      where: whereClause,
+      include: recetaInclude,
+      offset,
+      limit,
+      distinct: useDistinct // Solo usar distinct si hay filtro de ingredientes
     });
 
     res.status(200).json({
@@ -56,12 +84,6 @@ exports.getAllReceta = async (req, res) => {
 // Obtener receta por ID
 exports.getRecetaById = async (req, res) => {
   try {
-    // Importar modelos para incluir datos del usuario
-    const initModels = require("../models/init-models");
-    const sequelize = require("../config/sequelize");
-    const models = initModels(sequelize);
-    const { receta: Receta, usuario: Usuario } = models;
-
     const recetaConUsuario = await Receta.findByPk(req.params.receta_id, {
       include: [{
         model: Usuario,

@@ -87,54 +87,95 @@ class FavoritosController {
       );
     }
   }
-  // Obtener favoritos del usuario
+  // Obtener favoritos del usuario con filtros avanzados
   async obtenerFavoritos(req, res) {
     try {
-      console.log('=== OBTENER FAVORITOS - INICIO ===');
       const usuario_id = req.usuario.usuario_id;
-      console.log('Usuario ID:', usuario_id);
-      
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 10;
       const offset = (page - 1) * limit;
-      console.log('Paginación - Page:', page, 'Limit:', limit, 'Offset:', offset);
 
-      console.log('Modelos disponibles:', Object.keys(models));
-      console.log('Verificando modelo Favoritos:', !!Favoritos);
-      console.log('Verificando modelo Receta:', !!Receta);
-      console.log('Verificando modelo Usuario:', !!Usuario);
+      // Filtros
+      const filterCriteria = req.query.filterCriteria;
+      const searchQuery = req.query.searchQuery;
+      const fechaDesde = req.query.fechaDesde;
+      const fechaHasta = req.query.fechaHasta;
+      const ingrediente = req.query.ingrediente;
 
-      console.log('Iniciando consulta a base de datos...');      const favoritos = await Favoritos.findAndCountAll({
+      // Construir where dinámico para Receta
+      let recetaWhere = {};
+      if (filterCriteria && searchQuery) {
+        switch (filterCriteria) {
+          case 'nombre':
+            recetaWhere.nombre = { [Op.like]: `%${searchQuery}%` };
+            break;
+          case 'categoria':
+            recetaWhere.categoria = searchQuery;
+            break;
+          case 'dificultad':
+            recetaWhere.dificultad = searchQuery;
+            break;
+          case 'origen':
+            recetaWhere.origen = { [Op.like]: `%${searchQuery}%` };
+            break;
+        }
+      }
+      if (filterCriteria === 'fecha_creacion' && (fechaDesde || fechaHasta)) {
+        recetaWhere.fecha_creacion = {};
+        if (fechaDesde) recetaWhere.fecha_creacion[Op.gte] = fechaDesde;
+        if (fechaHasta) recetaWhere.fecha_creacion[Op.lte] = fechaHasta;
+      }
+      if (filterCriteria === 'fecha_publicacion' && (fechaDesde || fechaHasta)) {
+        recetaWhere.fecha_publicacion = {};
+        if (fechaDesde) recetaWhere.fecha_publicacion[Op.gte] = fechaDesde;
+        if (fechaHasta) recetaWhere.fecha_publicacion[Op.lte] = fechaHasta;
+      }
+
+      // Multi-ingredientes: aceptar lista de IDs/nombres
+      let ingredientesParam = req.query.ingredientes;
+      let ingredientesArray = [];
+      if (ingredientesParam) {
+        if (typeof ingredientesParam === 'string') {
+          ingredientesArray = ingredientesParam.split(',').map(x => x.trim()).filter(x => x);
+        } else if (Array.isArray(ingredientesParam)) {
+          ingredientesArray = ingredientesParam;
+        }
+      }
+
+      let recetaInclude = [
+        {
+          model: models.Recetas_Ingredientes,
+          as: 'Recetas_Ingredientes',
+          required: ingredientesArray.length > 0,
+          where: ingredientesArray.length > 0 ? { ingrediente_id: { [Op.in]: ingredientesArray.map(Number) } } : undefined
+        },
+        {
+          model: Usuario,
+          as: 'usuario',
+          attributes: ['usuario_id', 'Nombre_de_usuario', 'Foto_de_perfil']
+        }
+      ];
+
+      // Consulta
+      const favoritos = await Favoritos.findAndCountAll({
         where: { usuario_id },
         include: [{
           model: Receta,
           as: 'receta',
+          where: Object.keys(recetaWhere).length > 0 ? recetaWhere : undefined,
           attributes: [
-            'receta_id',
-            'nombre',
-            'descripcion',
-            'tiempo_preparacion',
-            'dificultad',
-            'porciones',
-            'imagen',
-            'categoria',
-            'usuario_id'
+            'receta_id', 'nombre', 'descripcion', 'tiempo_preparacion',
+            'dificultad', 'porciones', 'imagen', 'categoria', 'usuario_id',
+            'fecha_creacion', 'fecha_publicacion', 'origen'
           ],
-          include: [{
-            model: Usuario,
-            as: 'usuario',
-            attributes: ['usuario_id', 'Nombre_de_usuario', 'Foto_de_perfil']
-          }]
+          include: recetaInclude
         }],
         order: [['fecha_favorito', 'DESC']],
         limit,
         offset
       });
 
-      console.log('Consulta completada. Count:', favoritos.count, 'Rows:', favoritos.rows.length);
-
       const totalPages = Math.ceil(favoritos.count / limit);
-
       const resultado = {
         favoritos: favoritos.rows,
         paginacion: {
@@ -144,16 +185,10 @@ class FavoritosController {
           itemsPerPage: limit
         }
       };
-
-      console.log('=== OBTENER FAVORITOS - ÉXITO ===');
       res.status(200).json(
         Respuesta.exito(resultado, 'Favoritos obtenidos correctamente')
       );
     } catch (error) {
-      console.error('=== OBTENER FAVORITOS - ERROR ===');
-      console.error('Error al obtener favoritos:', error);
-      console.error('Error message:', error.message);
-      console.error('Error stack:', error.stack);
       res.status(500).json(
         Respuesta.errorObj('Error interno del servidor')
       );
