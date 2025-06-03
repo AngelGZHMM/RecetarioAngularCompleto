@@ -8,9 +8,9 @@ services:
       - 8080:80
     environment:
     # Public Networking
-      - PMA_HOST=ballast.proxy.rlwy.net
-      - PMA_PORT=12105
+      - PMA_HOST=yamabiko.proxy.rlwy.net
+      - PMA_PORT=29522
       # MYSQLUSER
       - PMA_USER=root
       # MYSQL_ROOT_PASSWORD
-      - PMA_PASSWORD=fiXwCSmmDhKZApFkcwGVkdMahFMedtcO
+      - PMA_PASSWORD=HwHIRXdQHQHmqNwoNOrSuolhXHmKGhLB

@@ -1,0 +1,1 @@
+var e=["Desayuno","Almuerzo","Cena","Postre","Aperitivo","Bebida","Entrante","Plato Principal","Acompa\xF1amiento","Snack","Vegetariano","Vegano","Sin Gluten"],n=["F\xE1cil","Media","Dif\xEDcil"];export{e as a,n as b};

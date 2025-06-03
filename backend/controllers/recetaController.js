@@ -1,5 +1,5 @@
 const { Op } = require("sequelize");
-const { receta: Receta } = require("../models/init-models")(require("../config/sequelize"));
+const { receta: Receta, usuario: Usuario } = require("../models/init-models")(require("../config/sequelize"));
 const jwt = require('jsonwebtoken');
 const secretKey = process.env.JWT_SECRET;
 

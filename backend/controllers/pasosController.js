@@ -39,7 +39,7 @@ class PasosController {
       
       if (!recetaExiste) {
         console.log(`Receta con ID ${recetaId} no encontrada`);
-        return res.status(404).json(Respuesta.error(null, `Receta con ID ${recetaId} no encontrada`));
+        return res.status(404).json(Respuesta.error(res, null, `Receta con ID ${recetaId} no encontrada`));
       }
       
       // Especificar explícitamente las columnas para evitar problemas
@@ -70,7 +70,7 @@ class PasosController {
       console.error(`Stack: ${err.stack}`);
       console.log(err);
 
-      res.status(500).json(Respuesta.error(null, `Error al recuperar los datos de los pasos: ${req.originalUrl}. Detalles: ${err.message}`));
+      res.status(500).json(Respuesta.error(res, null, `Error al recuperar los datos de los pasos: ${req.originalUrl}. Detalles: ${err.message}`));
     }
   }
 
@@ -98,51 +98,45 @@ class PasosController {
   async createPaso(req, res) {
     try {
       console.log("Datos recibidos:", req.body)
-
       // Verificar permisos para la receta
       const recetaId = req.body.receta_id
       const { permitido, mensaje } = await this.verificarPermisoReceta(recetaId, req.usuarioId, req.esAdmin)
-
       if (!permitido) {
-        return res.status(403).json(Respuesta.error(null, mensaje))
+        return res.status(403).json(Respuesta.error(res, null, mensaje))
       }
-
       const { descripcion, cantidad, unidad_medida, tipo, duracion } = req.body
-
       // Validaciones
       if (descripcion.length < 7) {
-        return res.status(400).json(Respuesta.error(null, "Descripción debe ser más larga."))
+        return Respuesta.error(res, 400, "Descripción debe ser más larga.");
       }
-
       if (cantidad && !unidad_medida) {
-        return res.status(400).json(Respuesta.error(null, "Debe haber unidad de medida si hay cantidad."))
+        return Respuesta.error(res, 400, "Debe haber unidad de medida si hay cantidad.");
       }
       if (!cantidad && unidad_medida) {
-        return res.status(400).json(Respuesta.error(null, "Debe haber cantidad si hay unidad de medida."))
+        return Respuesta.error(res, 400, "Debe haber cantidad si hay unidad de medida.");
       }
-
       if (!tipo) {
-        return res.status(400).json(Respuesta.error(null, "El campo tipo es obligatorio."))
+        return Respuesta.error(res, 400, "El campo tipo es obligatorio.");
       }
-
       if (!duracion) {
-        return res.status(400).json(Respuesta.error(null, "El campo duración es obligatorio."))
+        return Respuesta.error(res, 400, "El campo duración es obligatorio.");
       }
-
-      // Asegurarse de que los valores sean compatibles con los tipos de datos de la base de datos
+      // Calcular el siguiente número de orden disponible para la receta
+      const maxPaso = await Pasos.max('orden', { where: { receta_id: recetaId } });
+      const nuevoOrden = (maxPaso || 0) + 1;
+      // Crear el paso con el nuevo orden
       const pasoData = {
         ...req.body,
         cantidad: cantidad ? Number.parseFloat(cantidad) : null,
+        orden: nuevoOrden // forzar el orden correcto
       }
-
       const data = await Pasos.create(pasoData)
-      res.json(Respuesta.success(data, "Paso creado correctamente"))
+      return Respuesta.success(res, 201, "Paso creado correctamente", data);
     } catch (err) {
       console.error(`Error al crear el paso: ${err.message}`)
       console.error("Error stack:", err.stack)
       console.error("Error details:", err)
-
-      res.status(500).json(Respuesta.error(null, `Error al crear el paso, Ya existe.`))
+      return Respuesta.error(res, 500, `Error al crear el paso, Ya existe.`);
     }
   }
 
@@ -156,7 +150,7 @@ class PasosController {
       const { permitido, mensaje } = await this.verificarPermisoReceta(recetaId, req.usuarioId, req.esAdmin)
 
       if (!permitido) {
-        return res.status(403).json(Respuesta.error(null, mensaje))
+        return res.status(403).json(Respuesta.error(res, null, mensaje))
       }
 
       const data = await Pasos.destroy({
@@ -169,13 +163,13 @@ class PasosController {
       if (data == 1) {
         res.json(Respuesta.success(data, "Paso eliminado correctamente"))
       } else {
-        res.json(Respuesta.error(null, "No se pudo eliminar el paso"))
+        return Respuesta.error(res, 404, "No se pudo eliminar el paso")
       }
     } catch (err) {
       console.error(`Error al eliminar el paso: ${err.message}`)
       console.error(err)
 
-      res.status(500).json(Respuesta.error(null, `Error al eliminar el paso: ${req.originalUrl}`))
+      res.status(500).json(Respuesta.error(res, null, `Error al eliminar el paso: ${req.originalUrl}`))
     }
   }
 
@@ -189,7 +183,7 @@ class PasosController {
       const { permitido, mensaje } = await this.verificarPermisoReceta(recetaId, req.usuarioId, req.esAdmin)
 
       if (!permitido) {
-        return res.status(403).json(Respuesta.error(null, mensaje))
+        return res.status(403).json(Respuesta.error(res, null, mensaje))
       }
 
       console.log(`Parámetros recibidos - Orden: ${orden}, Receta: ${recetaId}`)
@@ -198,22 +192,22 @@ class PasosController {
 
       // Validaciones
       if (descripcion && descripcion.length < 7) {
-        return res.status(400).json(Respuesta.error(null, "Descripción debe ser más larga."))
+        return res.status(400).json(Respuesta.error(res, null, "Descripción debe ser más larga."))
       }
 
       if (cantidad && !unidad_medida) {
-        return res.status(400).json(Respuesta.error(null, "Debe haber unidad de medida si hay cantidad."))
+        return res.status(400).json(Respuesta.error(res, null, "Debe haber unidad de medida si hay cantidad."))
       }
       if (!cantidad && unidad_medida) {
-        return res.status(400).json(Respuesta.error(null, "Debe haber cantidad si hay unidad de medida."))
+        return res.status(400).json(Respuesta.error(res, null, "Debe haber cantidad si hay unidad de medida."))
       }
 
       if (tipo === undefined || tipo === null) {
-        return res.status(400).json(Respuesta.error(null, "El campo tipo es obligatorio."))
+        return res.status(400).json(Respuesta.error(res, null, "El campo tipo es obligatorio."))
       }
 
       if (duracion === undefined || duracion === null) {
-        return res.status(400).json(Respuesta.error(null, "El campo duración es obligatorio."))
+        return res.status(400).json(Respuesta.error(res, null, "El campo duración es obligatorio."))
       }
 
       // Verificar si el paso existe
@@ -228,7 +222,7 @@ class PasosController {
 
       if (!paso) {
         console.log("El paso no existe")
-        return res.status(404).json(Respuesta.error(null, "El paso no existe"))
+        return res.status(404).json(Respuesta.error(res, null, "El paso no existe"))
       }
 
       const pasoData = {
@@ -249,13 +243,13 @@ class PasosController {
       if (updated) {
         res.json(Respuesta.success(updated, "Paso actualizado correctamente"))
       } else {
-        res.json(Respuesta.error(null, "No se pudo actualizar el paso, los datos son iguales"))
+        return Respuesta.error(res, 400, "No se pudo actualizar el paso, los datos son iguales")
       }
     } catch (err) {
       console.error(`Error al actualizar el paso: ${err.message}`)
       console.error(err)
 
-      res.status(500).json(Respuesta.error(null, `Error al actualizar el paso: ${req.originalUrl}`))
+      res.status(500).json(Respuesta.error(res, null, `Error al actualizar el paso: ${req.originalUrl}`))
     }
   }
 
@@ -274,7 +268,7 @@ class PasosController {
       console.error(`Error: ${err.message}`)
       console.log(err)
 
-      res.status(500).json(Respuesta.error(null, `Error al recuperar los datos del paso: ${req.originalUrl}`))
+      res.status(500).json(Respuesta.error(res, null, `Error al recuperar los datos del paso: ${req.originalUrl}`))
     }
   }
 }
